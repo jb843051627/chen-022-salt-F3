@@ -36,14 +36,67 @@ public class TSaltRecordFlow implements Serializable {
     @ApiModelProperty(value = "跨省经营备案单代号")
     private String bizNo;
 
-    /** 当前步次 0..3（递单受理/材料核验/生效确认/缴回封卷） */
+    /** 企业代号（四样齐之一） */
+    @TableField("ent_no")
+    @ApiModelProperty(value = "企业代号（四样齐之一）")
+    private String entNo;
+
+    /** 承运那一路起运那一刻（四样齐之二） */
+    @TableField("depart_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @ApiModelProperty(value = "承运那一路起运那一刻（四样齐之二）")
+    private Date departAt;
+
+    /** 到货那一刻（四样齐之三） */
+    @TableField("arrive_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @ApiModelProperty(value = "到货那一刻（四样齐之三）")
+    private Date arriveAt;
+
+    /** 拟销到的县域个数（四样齐之四） */
+    @TableField("region_count")
+    @ApiModelProperty(value = "拟销到的县域个数（四样齐之四）")
+    private Integer regionCount;
+
+    /** 材料核验档应填全的核验笔数（当地定的那几笔） */
+    @TableField("check_required")
+    @ApiModelProperty(value = "材料核验档应填全的核验笔数（当地定的那几笔）")
+    private Integer checkRequired;
+
+    /** 生效确认档公示起钟那一刻 */
+    @TableField("publicity_start")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @ApiModelProperty(value = "生效确认档公示起钟那一刻")
+    private Date publicityStart;
+
+    /** 当地定的应连着公示的钟点数 */
+    @TableField("publicity_hours")
+    @ApiModelProperty(value = "当地定的应连着公示的钟点数")
+    private java.math.BigDecimal publicityHours;
+
+    /** 已连着公示的钟点数（与起钟一刻同一次算出） */
+    @TableField("publicity_done_hours")
+    @ApiModelProperty(value = "已连着公示的钟点数（与起钟一刻同一次算出）")
+    private java.math.BigDecimal publicityDoneHours;
+
+    /** 旧证缴回回执落没落 0没落 1已落 */
+    @TableField("cert_returned")
+    @ApiModelProperty(value = "旧证缴回回执落没落 0没落 1已落")
+    private Integer certReturned;
+
+    /** 收口说法 N不必备案 S就地止住；落档封存留空 */
+    @TableField("close_type")
+    @ApiModelProperty(value = "收口说法 N不必备案 S就地止住；落档封存留空")
+    private String closeType;
+
+    /** 当前步次 0..3（系统按已过步次数出来，页面/接口只把表单步次当来意） */
     @TableField("stage")
-    @ApiModelProperty(value = "当前步次 0..3（递单受理/材料核验/生效确认/缴回封卷）")
+    @ApiModelProperty(value = "当前步次 0..3（系统按已过步次数出来，页面/接口只把表单步次当来意）")
     private Integer stage;
 
-    /** 备案单走到的那一步 0未起 1在办 2已封卷 */
+    /** 备案单情形 0未起 1在办 2已封卷落档 3收口止住 */
     @TableField("status")
-    @ApiModelProperty(value = "备案单走到的那一步 0未起 1在办 2已封卷")
+    @ApiModelProperty(value = "备案单情形 0未起 1在办 2已封卷落档 3收口止住")
     private Integer status;
 
     /** 一段一记 */
@@ -55,6 +108,11 @@ public class TSaltRecordFlow implements Serializable {
     @TableField("last_action")
     @ApiModelProperty(value = "最近一次挪步动作")
     private String lastAction;
+
+    /** 递单方报来的步次，只当来意看待（非持久化；入库/回读一律以系统数出来的 stage 为准） */
+    @TableField(exist = false)
+    @ApiModelProperty(value = "递单方报来的步次（只当来意，不作数）")
+    private transient Integer requestStage;
 
     /** 删除标记 0正常 1删除 */
     @TableField("del_flag")
@@ -102,6 +160,94 @@ public class TSaltRecordFlow implements Serializable {
 
     public void setBizNo(String bizNo) {
         this.bizNo = bizNo;
+    }
+
+    public String getEntNo() {
+        return entNo;
+    }
+
+    public void setEntNo(String entNo) {
+        this.entNo = entNo;
+    }
+
+    public Date getDepartAt() {
+        return departAt;
+    }
+
+    public void setDepartAt(Date departAt) {
+        this.departAt = departAt;
+    }
+
+    public Date getArriveAt() {
+        return arriveAt;
+    }
+
+    public void setArriveAt(Date arriveAt) {
+        this.arriveAt = arriveAt;
+    }
+
+    public Integer getRegionCount() {
+        return regionCount;
+    }
+
+    public void setRegionCount(Integer regionCount) {
+        this.regionCount = regionCount;
+    }
+
+    public Integer getCheckRequired() {
+        return checkRequired;
+    }
+
+    public void setCheckRequired(Integer checkRequired) {
+        this.checkRequired = checkRequired;
+    }
+
+    public Date getPublicityStart() {
+        return publicityStart;
+    }
+
+    public void setPublicityStart(Date publicityStart) {
+        this.publicityStart = publicityStart;
+    }
+
+    public java.math.BigDecimal getPublicityHours() {
+        return publicityHours;
+    }
+
+    public void setPublicityHours(java.math.BigDecimal publicityHours) {
+        this.publicityHours = publicityHours;
+    }
+
+    public java.math.BigDecimal getPublicityDoneHours() {
+        return publicityDoneHours;
+    }
+
+    public void setPublicityDoneHours(java.math.BigDecimal publicityDoneHours) {
+        this.publicityDoneHours = publicityDoneHours;
+    }
+
+    public Integer getCertReturned() {
+        return certReturned;
+    }
+
+    public void setCertReturned(Integer certReturned) {
+        this.certReturned = certReturned;
+    }
+
+    public String getCloseType() {
+        return closeType;
+    }
+
+    public void setCloseType(String closeType) {
+        this.closeType = closeType;
+    }
+
+    public Integer getRequestStage() {
+        return requestStage;
+    }
+
+    public void setRequestStage(Integer requestStage) {
+        this.requestStage = requestStage;
     }
 
     public Integer getStage() {

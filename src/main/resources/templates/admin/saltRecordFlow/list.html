@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('跨省经营备案单流转台账')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">备案单号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="bizNo" placeholder="" class="layui-input">
+                </div>
+                <label class="layui-form-label">企业代号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="entNo" placeholder="" class="layui-input">
+                </div>
+                <label class="layui-form-label">情形</label>
+                <div class="layui-input-inline">
+                    <select name="status">
+                        <option value="">全部</option>
+                        <option value="1">在办</option>
+                        <option value="2">已封卷落档</option>
+                        <option value="3">收口止住</option>
+                    </select>
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="flow-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+                <span class="pear-btn pear-btn-md" style="cursor:default">在办备案单：<b id="active-count">-</b> 张（立案加一、封卷减一）</span>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="flow-table" lay-filter="flow-table"></table>
+    </div>
+</div>
+
+<!-- 立案表单（递单受理：四样齐才立） -->
+<script type="text/html" id="accept-form-tpl">
+    <form class="layui-form" style="margin:16px" id="accept-form">
+        <div class="layui-form-item">
+            <label class="layui-form-label">企业代号</label>
+            <div class="layui-input-block"><input type="text" name="entNo" required lay-verify="required" class="layui-input" placeholder="四样齐之一"></div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">起运那一刻</label>
+            <div class="layui-input-block"><input type="text" name="departAt" id="acc-depart" required lay-verify="required" class="layui-input" placeholder="yyyy-MM-dd HH:mm:ss"></div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">到货那一刻</label>
+            <div class="layui-input-block"><input type="text" name="arriveAt" id="acc-arrive" required lay-verify="required" class="layui-input" placeholder="yyyy-MM-dd HH:mm:ss"></div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">拟销县域个数</label>
+            <div class="layui-input-block"><input type="number" name="regionCount" required lay-verify="required" min="1" class="layui-input" placeholder="四样齐之四"></div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">应公示钟点</label>
+            <div class="layui-input-block"><input type="number" name="publicityHours" min="1" class="layui-input" placeholder="当地定的钟点数，留空按 48"></div>
+        </div>
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">头一档留的话</label>
+            <div class="layui-input-block"><textarea name="remark" class="layui-textarea"></textarea></div>
+        </div>
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button class="pear-btn pear-btn-primary" lay-submit lay-filter="accept-submit">递单立案</button>
+                <button type="button" class="pear-btn" id="accept-cancel">取消</button>
+            </div>
+        </div>
+    </form>
+</script>
+
+<!-- 往前挪：报来的步次只当来意，放不放行听服务层回话 -->
+<script type="text/html" id="advance-form-tpl">
+    <form class="layui-form" style="margin:16px" id="advance-form">
+        <div class="layui-form-item">
+            <label class="layui-form-label">系统数出来的步次</label>
+            <div class="layui-input-block" style="padding-top:9px">
+                <b id="adv-current-stage"></b>（<span id="adv-current-name"></span>）——只许进紧挨着的后一步
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">报来的步次</label>
+            <div class="layui-input-block">
+                <input type="number" name="requestStage" class="layui-input" placeholder="只当来意：填后一步求推进；填当前步算同档第二遍；留空按后一步">
+            </div>
+        </div>
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">这一档的话</label>
+            <div class="layui-input-block"><textarea name="remark" class="layui-textarea"></textarea></div>
+        </div>
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button class="pear-btn pear-btn-primary" lay-submit lay-filter="advance-submit">往前挪</button>
+                <button type="button" class="pear-btn" id="advance-cancel">取消</button>
+            </div>
+        </div>
+    </form>
+</script>
+
+<script type="text/html" id="flow-toolbar">
+    <button shiro:hasPermission="saltRecordFlow:accept" class="pear-btn pear-btn-primary pear-btn-md" lay-event="accept">
+        <i class="layui-icon layui-icon-add-1"></i>
+        立案递单
+    </button>
+</script>
+
+<script type="text/html" id="stage-tpl">
+    {{# var names=['递单受理','材料核验','生效确认','缴回封卷']; }}
+    <span class="layui-badge layui-bg-blue">{{ names[d.stage] || d.stage }}</span>
+</script>
+
+<script type="text/html" id="status-tpl">
+    {{# if(d.status==1){ }}<span class="layui-badge">在办</span>
+    {{# }else if(d.status==2){ }}<span class="layui-badge layui-bg-green">已封卷落档</span>
+    {{# }else if(d.status==3){ }}<span class="layui-badge layui-bg-orange">收口止住（{{ d.closeType=='N' ? '不必备案' : '就地止住' }}）</span>
+    {{# } }}
+</script>
+
+<script type="text/html" id="flow-bar">
+    <button shiro:hasPermission="saltRecordFlow:advance" class="pear-btn pear-btn-primary pear-btn-sm" lay-event="advance" title="往前挪"><i class="layui-icon layui-icon-right"></i></button>
+    <button shiro:hasPermission="saltRecordFlow:rollback" class="pear-btn pear-btn-warming pear-btn-sm" lay-event="rollback" title="往后收一档"><i class="layui-icon layui-icon-left"></i></button>
+    <button shiro:hasPermission="saltRecordFlow:advance" class="pear-btn pear-btn-sm" lay-event="fillCheck" title="核验笔落一笔">核验</button>
+    <button shiro:hasPermission="saltRecordFlow:advance" class="pear-btn pear-btn-sm" lay-event="receipt" title="旧证缴回回执">回执</button>
+    <button shiro:hasPermission="saltRecordFlow:close" class="pear-btn pear-btn-danger pear-btn-sm" lay-event="close" title="收口（不必备案/就地止住）">收口</button>
+    <button shiro:hasPermission="saltRecordFlow:view" class="pear-btn pear-btn-sm" lay-event="notes" title="段记载"><i class="layui-icon layui-icon-form"></i></button>
+    <button shiro:hasPermission="saltRecordFlow:audit" class="pear-btn pear-btn-sm" lay-event="audit" title="倒着数回递单受理">复核</button>
+</script>
+
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['table', 'form', 'jquery', 'layer', 'laydate'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+        let layer = layui.layer;
+        let laydate = layui.laydate;
+
+        let MODULE_PATH = rootPath + "/saltRecordFlow/";
+        let STAGE_NAMES = ['递单受理', '材料核验', '生效确认', '缴回封卷'];
+        // layui 的 form.on 会叠加绑定：立案/推进两个 submit 只在外层绑一遍，弹层重复打开不重绑
+        let acceptBound = false;
+        let advanceBound = false;
+        let currentAdvanceId = null;
+
+        let cols = [[
+            {title: '备案单号', field: 'bizNo', align: 'left', width: 190},
+            {title: '企业代号', field: 'entNo', align: 'center', width: 110},
+            {title: '步次（系统数的）', field: 'stage', align: 'center', width: 130, toolbar: '#stage-tpl'},
+            {title: '情形', field: 'status', align: 'center', width: 150, toolbar: '#status-tpl'},
+            {title: '起运那一刻', field: 'departAt', align: 'center', width: 170},
+            {title: '到货那一刻', field: 'arriveAt', align: 'center', width: 170},
+            {title: '县域数', field: 'regionCount', align: 'center', width: 70},
+            {title: '公示钟点', field: 'publicityHours', align: 'center', width: 110,
+                templet: function (d) {
+                    if (d.publicityHours == null) return '-';
+                    return (d.publicityDoneHours == null ? '0' : d.publicityDoneHours) + ' / ' + d.publicityHours;
+                }},
+            {title: '当前档留的话', field: 'content', align: 'left'},
+            {title: '操作', toolbar: '#flow-bar', align: 'center', width: 330, fixed: 'right'}
+        ]];
+
+        table.render({
+            elem: '#flow-table',
+            url: MODULE_PATH + 'list',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#flow-toolbar',
+            defaultToolbar: ['refresh', 'filter', 'print', 'exports'],
+            where: {orderByColumn: "id", isAsc: "desc"}
+        });
+
+        function refreshActive() {
+            $.get(MODULE_PATH + 'activeCount', function (res) {
+                $('#active-count').text(res.code === 200 ? res.data : '-');
+            });
+        }
+
+        function reloadAll() {
+            table.reload('flow-table');
+            refreshActive();
+        }
+
+        form.on('submit(flow-query)', function (data) {
+            table.reload('flow-table', {where: data.field, page: {curr: 1}});
+            return false;
+        });
+
+        table.on('toolbar(flow-table)', function (obj) {
+            if (obj.event === 'accept') {
+                openAccept();
+            } else if (obj.event === 'refresh') {
+                reloadAll();
+            }
+        });
+
+        table.on('tool(flow-table)', function (obj) {
+            let d = obj.data;
+            if (obj.event === 'advance') {
+                openAdvance(d);
+            } else if (obj.event === 'rollback') {
+                askSaid('往后收一档（原话沉底，重走重新攒）', function (said) {
+                    post('rollback', {id: d.id, remark: said}, reloadAll);
+                });
+            } else if (obj.event === 'fillCheck') {
+                layer.prompt({title: '核验笔笔号（落齐最后一笔自动起公示钟）', formType: 0}, function (itemNo, idx) {
+                    layer.close(idx);
+                    post('fillCheck', {id: d.id, itemNo: $.trim(itemNo)}, reloadAll);
+                });
+            } else if (obj.event === 'receipt') {
+                post('receipt', {id: d.id}, reloadAll);
+            } else if (obj.event === 'close') {
+                layer.open({
+                    type: 1, title: '收口（两说都算封口，封后改不动删不掉挪不了）', area: ['420px', '280px'],
+                    content: '<div style="padding:20px">' +
+                        '<button class="pear-btn pear-btn-danger" id="close-n" style="margin-right:12px">不必备案</button>' +
+                        '<button class="pear-btn pear-btn-danger" id="close-s">就地止住</button></div>',
+                    success: function () {
+                        $('#close-n').on('click', function () { doClose(d.id, 'N'); });
+                        $('#close-s').on('click', function () { doClose(d.id, 'S'); });
+                    }
+                });
+            } else if (obj.event === 'notes') {
+                openNotes(d.id);
+            } else if (obj.event === 'audit') {
+                doAudit(d.id);
+            }
+        });
+
+        function doClose(id, type) {
+            askSaid(type === 'N' ? '不必备案——留个收口的话' : '就地止住——留个收口的话', function (said) {
+                layer.closeAll();
+                post('close', {id: id, closeType: type, remark: said}, reloadAll);
+            });
+        }
+
+        function post(url, data, done) {
+            let loading = layer.load();
+            $.post(MODULE_PATH + url, data, function (res) {
+                layer.close(loading);
+                layer.msg(res.msg, {icon: res.code === 200 ? 1 : 2, time: 1500}, function () {
+                    if (res.code === 200 && done) done();
+                });
+            });
+        }
+
+        function askSaid(title, cb) {
+            layer.prompt({title: title, formType: 2, area: ['380px', '120px']}, function (value, idx) {
+                layer.close(idx);
+                cb(value);
+            });
+        }
+
+        function openAccept() {
+            layer.open({
+                type: 1, title: '立案递单（四样齐才立；一企只养一张活单）', area: ['520px', '520px'],
+                content: $('#accept-form-tpl').html(),
+                success: function () {
+                    laydate.render({elem: '#acc-depart', type: 'datetime', format: 'yyyy-MM-dd HH:mm:ss'});
+                    laydate.render({elem: '#acc-arrive', type: 'datetime', format: 'yyyy-MM-dd HH:mm:ss'});
+                    form.render();
+                    $('#accept-cancel').on('click', function () { layer.closeAll(); });
+                    if (!acceptBound) {
+                        acceptBound = true;
+                        form.on('submit(accept-submit)', function (data) {
+                            post('accept', data.field, function () { layer.closeAll(); reloadAll(); });
+                            return false;
+                        });
+                    }
+                }
+            });
+        }
+
+        function openAdvance(d) {
+            layer.open({
+                type: 1, title: '往前挪（步次只有服务层那一个推进方法作答）', area: ['520px', '400px'],
+                content: $('#advance-form-tpl').html(),
+                success: function () {
+                    $('#adv-current-stage').text(d.stage);
+                    $('#adv-current-name').text(STAGE_NAMES[d.stage] || '');
+                    $('#advance-cancel').on('click', function () { layer.closeAll(); });
+                    if (!advanceBound) {
+                        advanceBound = true;
+                        form.on('submit(advance-submit)', function (data) {
+                            let field = data.field;
+                            post('advance', {
+                                id: currentAdvanceId,
+                                requestStage: field.requestStage === '' ? null : field.requestStage,
+                                remark: field.remark
+                            }, function () { layer.closeAll(); reloadAll(); });
+                            return false;
+                        });
+                    }
+                    currentAdvanceId = d.id;
+                }
+            });
+        }
+
+        function openNotes(id) {
+            $.get(MODULE_PATH + 'notes', {id: id}, function (res) {
+                if (res.code !== 200) { layer.msg(res.msg, {icon: 2}); return; }
+                let rows = (res.data || []).map(function (n) {
+                    return '<tr><td>' + n.seq + '</td><td>' + (STAGE_NAMES[n.stageNo] || (n.stageNo === 4 ? '落档封存' : n.stageNo)) +
+                        '</td><td>第' + n.walkNo + '趟</td><td>' + n.action + '</td><td>' +
+                        new Date(n.eventMs).toLocaleString() + '</td><td>' + (n.said == null ? '' : n.said) + '</td></tr>';
+                }).join('');
+                layer.open({
+                    type: 1, title: '流转段记载（倒着数回递单受理就从这里数）', area: ['860px', '480px'],
+                    content: '<table class="layui-table" style="margin:12px;width:820px">' +
+                        '<thead><tr><th>段次</th><th>步次</th><th>趟次</th><th>动作</th><th>落下那一刻</th><th>话</th></tr></thead>' +
+                        '<tbody>' + rows + '</tbody></table>'
+                });
+            });
+        }
+
+        function doAudit(id) {
+            $.get(MODULE_PATH + 'audit', {id: id}, function (res) {
+                let r = res.data || {};
+                let icon = r.pass ? 1 : 2;
+                let problems = (r.problems || []).join('<br>');
+                layer.open({
+                    type: 1, title: r.pass ? '复核合拢' : '复核有出入', area: ['560px', '360px'], icon: icon,
+                    content: '<div style="padding:18px;line-height:1.9">' +
+                        '段数：<b>' + (r.count == null ? '-' : r.count) + '</b>　头一笔：' + r.firstAction +
+                        '　末一笔：' + r.lastAction + '<br>倒着数回的步次：' + r.replayStage +
+                        '　当场点算在办：' + r.activeCount + ' 张<br>' +
+                        (problems ? '<span style="color:#e74c3c">' + problems + '</span>' : '段数、段次、首尾档与受理簿那几笔合得拢，抽段单看也经得起。') +
+                        '</div>'
+                });
+            });
+        }
+
+        refreshActive();
+    });
+</script>
+</body>
+</html>
