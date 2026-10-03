@@ -56,8 +56,19 @@ public class SaltRecordFlowController extends BaseController {
     @PostMapping("/advance")
     @RequiresPermissions("saltRecordFlow:advance")
     @ResponseBody
-    public AjaxResult advance(Long id, String remark) {
-        return toAjax(saltRecordFlowService.advance(id, remark) != null ? 1 : 0);
+    public AjaxResult advance(Long id, Integer stage, String remark) {
+        // 接口不预判：表单报上来的步次只算来意，原样递给服务层那一个推进方法作答
+        return toAjax(saltRecordFlowService.advance(id, stage, remark) != null ? 1 : 0);
+    }
+
+    @Log(title = "跨省经营备案单在办张数", action = "countActive")
+    @ApiOperation(value = "在办张数", notes = "在办张数")
+    @GetMapping("/countActive")
+    @RequiresPermissions("saltRecordFlow:list")
+    @ResponseBody
+    public AjaxResult countActive() {
+        // 屏上那个数与当场点验的数同一次算出：只调服务层这一处算法
+        return AjaxResult.successData(0, saltRecordFlowService.countActive());
     }
 
     @Log(title = "跨省经营备案单回退", action = "rollback")
